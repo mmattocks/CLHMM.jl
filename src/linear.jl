@@ -79,14 +79,10 @@ function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChann
         @assert start_iterate < max_iterations - 1
         curr_iterate = start_iterate
 
-        #mask calculations here rather than mle_step to prevent recalculation every iterate
         #build array of observation lengths
-        obs_lengths = [findfirst(iszero,observations[:,o])-1 for o in 1:size(observations)[2]]
-
+        obs_lengths = [findfirst(iszero,observations[:,o])-1 for o in 1:size(observations)[2]] #mask calculations here rather than mle_step to prevent recalculation every iterate
         start_iterate == 1 && put!(output_hmms, (workerid, jobid, curr_iterate, hmm, 0, 0, false)); #on the first iterate return the initial HMM for the chain right away
         verbose && @info "Fitting HMM, start iterate $start_iterate, job ID $jobid with $(size(hmm.π)[1]) states and $(length(hmm.D[1].support)) symbols..."
-
-        sleep(wait_secs)
 
         curr_iterate += 1
         if curr_iterate == 2 #no eps value is available

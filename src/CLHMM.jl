@@ -4,7 +4,7 @@ module CLHMM
     import Distributed: RemoteChannel, myid
     import StatsFuns: logsumexp, logaddexp
 
-    export linear_step, linear_hmm_converger!, lin_obs_set_lh
+    export linear_step, linear_hmm_converger!, lin_obs_set_lh, lps
 
     include("linear.jl")
 end # module

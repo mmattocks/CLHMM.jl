@@ -1,0 +1,4 @@
+name = "CLHMM"
+uuid = "50393821-5328-4e9b-b13d-f3f5dbde8b0c"
+authors = ["Michael Mattocks <mike.mattocks@utoronto.ca>"]
+version = "0.1.0"

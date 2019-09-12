@@ -70,10 +70,10 @@ end
                 end
 
 
-function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChannel, no_models::Int64, load_table::Vector{Tuple{Int64,Int64,Vector{String},Int64}}; eps_thresh=1e-3, max_iterations=5000, verbose=false)
+function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChannel, no_models::Int64, ; eps_thresh=1e-3, max_iterations=5000, verbose=false)
     while isready(hmm_jobs)
         workerid = myid()
-        jobid, start_iterate, hmm, job_norm, observations, wait_secs = load_balancer(no_models, hmm_jobs, load_table[workerid])
+        jobid::Tuple{String, Int64, Int64, Int64}, start_iterate::Int64, hmm::HMM, job_norm::Float64, observations::Matrix{Int64} = take!(hmm_jobs)
         jobid == 0 && break #no valid job for this worker according to load_table entry
 
         @assert start_iterate < max_iterations - 1
@@ -114,20 +114,6 @@ function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChann
         end
     end
 end
-                #subfunc to handle balancing memory load on dissimilar machines in cluster
-                function load_balancer(no_models::Int64, hmm_jobs::RemoteChannel, load_params::Tuple{Int64,Int64,Vector{String}, Int64})
-                    lb_kmin::Int64,lb_kmax::Int64,blacklist::Vector{String},wait_secs::Int64 = load_params
-                    lb_job_counter = 1
-                    
-                    jobid::Tuple{String, Int64, Int64, Int64}, start_iterate::Int64, hmm::HMM, job_norm::Float64, observations::Matrix{Int64} = take!(hmm_jobs)
-
-                    while (jobid[2] < lb_kmin || jobid[2] > lb_kmax || jobid[1] in blacklist) && lb_job_counter <= no_models #while a job prohibited by load table, keep putting the job back and drawing a new one
-                        put!(hmm_jobs, (jobid, start_iterate, hmm, observations))
-                        jobid, start_iterate, hmm, job_norm, observations = take!(hmm_jobs)
-                        lb_job_counter += 1
-                    end
-                    lb_job_counter > no_models ? (return 0,0,0,0,0) : (return jobid, start_iterate, hmm, job_norm, observations, wait_secs)
-                end
 
 function lin_obs_set_lh(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64})
     O = size(observations)[2]; obs_lengths = [findfirst(iszero,observations[:,o])-1 for o in 1:size(observations)[2]]

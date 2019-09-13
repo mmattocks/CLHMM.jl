@@ -58,7 +58,7 @@ include("mouchet_fns.jl")
     put!(input_hmms, (jobtuple, 2, hmm, 0.0, obs))
     linear_hmm_converger!(input_hmms, output_hmms, 1; max_iterations=4, verbose=true)
     wait(output_hmms)
-    workerid, jobid, iterate, hmm3, log_p, epsilon, converged = take!(output_hmms)
+    workerid, jobid, iterate, hmm3, log_p, delta, converged = take!(output_hmms)
     @test jobid == jobtuple
     @test iterate == 3
     @test assert_hmm(hmm3.π0, hmm3.π, hmm3.D)
@@ -67,7 +67,7 @@ include("mouchet_fns.jl")
     @test log_p == lin_obs_set_lh(hmm, obs)
     @test converged == false
     wait(output_hmms)
-    workerid, jobid, iterate, hmm4, log_p, epsilon, converged = take!(output_hmms)
+    workerid, jobid, iterate, hmm4, log_p, delta, converged = take!(output_hmms)
     @test jobid == jobtuple
     @test iterate == 4
     @test assert_hmm(hmm4.π0, hmm4.π, hmm4.D)
@@ -84,11 +84,11 @@ include("mouchet_fns.jl")
     input_hmms= RemoteChannel(()->Channel{Tuple}(1))
     output_hmms = RemoteChannel(()->Channel{Tuple}(30))
     put!(input_hmms, (jobtuple, 2, hmm, 0.0, obs))
-    linear_hmm_converger!(input_hmms, output_hmms, 1; eps_thresh=.05, max_iterations=100, verbose=true)
+    linear_hmm_converger!(input_hmms, output_hmms, 1; delta_thresh=.05, max_iterations=100, verbose=true)
     wait(output_hmms)
-    workerid, jobid, iterate, hmm4, log_p, epsilon, converged = take!(output_hmms)
+    workerid, jobid, iterate, hmm4, log_p, delta, converged = take!(output_hmms)
     while isready(output_hmms)
-        workerid, jobid, iterate, hmm4, log_p, epsilon, converged = take!(output_hmms)
+        workerid, jobid, iterate, hmm4, log_p, delta, converged = take!(output_hmms)
     end
     @test converged==1
 end

@@ -1,6 +1,7 @@
-using BenchmarkTools, CLHMM, MS_HMMBase, Distributions
+using BenchmarkTools, CLHMM, HMMBase, Distributions
 using StatsFuns: logsumexp
 include("mouchet_fns.jl")
+import MS_HMMBase:mle_step
 
 no_samples=100
 nevals=2000
@@ -18,10 +19,10 @@ log_π = log.(hmm.π)
 
 @info "Judging CLHMM.linear_step vs HMMBase.mle_step"
 old_step = median(@benchmark (mouchet_mle_step($hmm, $obs[1:obsl])))
-linear_step = median(@benchmark (linear_step($hmm, $obs, $obs_lengths)))
-display(judge(old_step,linear_step))
+lin_step = median(@benchmark (linear_step($hmm, $obs, $obs_lengths)))
+display(judge(old_step,lin_step))
 
 @info "Judging linear_step vs MS"
-new_step = median(@benchmark (MS_HMMBase.mle_step($hmm, $obs, $obs_lengths)))
-linear_step = median(@benchmark (linear_step($hmm, $obs, $obs_lengths)))
-display(judge(new_step,linear_step))
+new_step = median(@benchmark (mle_step($hmm, $obs, $obs_lengths)))
+lin_step = median(@benchmark (linear_step($hmm, $obs, $obs_lengths)))
+display(judge(new_step,lin_step))

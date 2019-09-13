@@ -1,4 +1,4 @@
-function linear_step(hmm::AbstractHMM{F}, observations::Matrix{Int64}, obs_lengths::Vector{Int64}) where F
+function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, obs_lengths::Vector{Int64})
     O = size(observations)[2]
     a = log.(hmm.π); π0 = log.(hmm.π0)
     N = length(hmm.D); D = length(hmm.D[1].support); b = [log(hmm.D[m].p[γ]) for m in 1:N, γ in 1:D]
@@ -56,7 +56,7 @@ function linear_step(hmm::AbstractHMM{F}, observations::Matrix{Int64}, obs_lengt
         new_b[i,:] = [lps(Ei[γ,i], -logsumexp(Ei[:,i])) for γ in 1:D]
     end
 
-    new_D::Vector{Distribution{F}}=[Categorical(exp.(new_b[i,:])) for i in 1:N]
+    new_D::Vector{Categorical}=[Categorical(exp.(new_b[i,:])) for i in 1:N]
 
     return typeof(hmm)(exp.(new_π0), exp.(new_a), new_D), lps(log_pobs)
 end

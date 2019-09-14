@@ -4,9 +4,8 @@ include("mouchet_fns.jl")
 
 @testset "mle_step functions" begin
     @info "Setting up for MLE function tests.."
-    π = [.5 .5
-         .5 .5]
-    D = [Categorical(ones(4)/4), Categorical([.7,.1,.1,.1])]
+    π = fill((1/6),6,6)
+    D = [Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1])]
     hmm = HMM(π, D)
     log_π = log.(hmm.π)
 
@@ -54,7 +53,7 @@ include("mouchet_fns.jl")
     #test fit_mle! function
     input_hmms= RemoteChannel(()->Channel{Tuple}(1))
     output_hmms = RemoteChannel(()->Channel{Tuple}(30))
-    jobtuple=("Test",2,0,1)
+    jobtuple=("Test",6,0,1)
     put!(input_hmms, (jobtuple, 2, hmm, 0.0, obs))
     linear_hmm_converger!(input_hmms, output_hmms, 1; max_iterations=4, verbose=true)
     wait(output_hmms)
@@ -62,7 +61,7 @@ include("mouchet_fns.jl")
     @test jobid == jobtuple
     @test iterate == 3
     @test assert_hmm(hmm3.π0, hmm3.π, hmm3.D)
-    @test size(hmm3) == size(hmm) == (2,1)
+    @test size(hmm3) == size(hmm) == (6,1)
     @test log_p < 1
     @test log_p == lin_obs_set_lh(hmm, obs)
     @test converged == false
@@ -71,7 +70,7 @@ include("mouchet_fns.jl")
     @test jobid == jobtuple
     @test iterate == 4
     @test assert_hmm(hmm4.π0, hmm4.π, hmm4.D)
-    @test size(hmm4) == size(hmm) == (2,1)
+    @test size(hmm4) == size(hmm) == (6,1)
     @test log_p < 1
     @test log_p == lin_obs_set_lh(hmm3, obs)
     @test converged == false

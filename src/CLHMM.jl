@@ -1,6 +1,6 @@
 module CLHMM
     import HMMBase:AbstractHMM, HMM
-    import Distributions:Distribution,Univariate,Categorical
+    import Distributions:Distribution,Univariate,Categorical,logpdf
     import Distributed: RemoteChannel, myid
     import StatsFuns: logsumexp, logaddexp
 

@@ -1,52 +1,76 @@
-using CLHMM, Distributed, Distributions, HMMBase, Test
+using CLHMM, Distributed, Distributions, HMMBase, Test, Random, MS_HMMBase
 import StatsFuns: logsumexp
 include("mouchet_fns.jl")
 
+Random.seed!(1)
+
 @testset "mle_step functions" begin
     @info "Setting up for MLE function tests.."
-    π = fill((1/6),6,6)
-    D = [Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1])]
-    hmm = HMM(π, D)
-    log_π = log.(hmm.π)
+    # π = fill((1/6),6,6)
+    # D = [Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1]),Categorical(ones(4)/4), Categorical([.7,.1,.1,.1])]
+    # hmm = HMM(π, D)
+    # log_π = log.(hmm.π)
+    dict=deserialize("/bench/PhD/NGS_binaries/BGHMM/hmmchains.sat.bak")
+    hmm=dict[("periexonic", 6, 1, 1)][1][2]
 
-    obs = zeros(Int64, 22,1)
-    obs[1:21] = [4,3,3,2,3,2,1,1,2,3,3,3,4,4,2,3,2,3,4,3,2]
-    obs_lengths=[21]
+    obs = zeros(Int64,250,1)
+    obs[1:249] = rand(1:16,249)
+    obs_lengths=[249]
     @info "Testing mle_step..."
 
     #verify that above methods independently produce equivalent output, and that this is true of multiple identical obs, but not true of different obs sets
-    mouchet_hmm = mouchet_mle_step(hmm, obs[1:21])
+    mouchet_hmm = mouchet_mle_step(hmm, obs[1:249])
 
     new_hmm = linear_step(hmm, obs, obs_lengths)
 
-    dblobs = zeros(Int64, 22,2)
-    dblobs[1:21,1] = [4,3,3,2,3,2,1,1,2,3,3,3,4,4,2,3,2,3,4,3,2]
-    dblobs[1:21,2] = [4,3,3,2,3,2,1,1,2,3,3,3,4,4,2,3,2,3,4,3,2]
-    dblobs_lengths=[21,21]
+    ms_sng = MS_HMMBase.mle_step(hmm, obs, obs_lengths)
+
+    dblobs = zeros(Int64, 250,2)
+    dblobs[1:249,1] = obs[1:249]
+    dblobs[1:249,2] = obs[1:249]
+    dblobs_lengths=[249,249]
     dbl_hmm = linear_step(hmm, dblobs, dblobs_lengths)
 
+
+    ms_dbl =MS_HMMBase.mle_step(hmm, dblobs,dblobs_lengths)
+
     otherobs = dblobs
-    otherobs[1:21,2] = [1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4,1]
+    otherobs[1:249,2] = rand(1:16,249)
     other_hmm = linear_step(hmm, otherobs, dblobs_lengths)
+
+    ms_hmm = MS_HMMBase.mle_step(hmm, otherobs,dblobs_lengths)
 
     for n in fieldnames(typeof(new_hmm[1]))
         if n == :D
             for (d, dist) in enumerate(D)
             @test isapprox(new_hmm[1].D[d].support,mouchet_hmm[1].D[d].support)
             @test isapprox(new_hmm[1].D[d].p,mouchet_hmm[1].D[d].p)
+            @test isapprox(new_hmm[1].D[d].support,ms_sng[1].D[d].support)
+            @test isapprox(new_hmm[1].D[d].p,ms_sng[1].D[d].p)
             @test new_hmm[1].D[d].support==dbl_hmm[1].D[d].support
             @test isapprox(new_hmm[1].D[d].p,dbl_hmm[1].D[d].p)
+            @test new_hmm[1].D[d].support==ms_dbl[1].D[d].support
+            @test isapprox(new_hmm[1].D[d].p,ms_dbl[1].D[d].p)
             @test new_hmm[1].D[d].support==other_hmm[1].D[d].support
+            @test ms_hmm[1].D[d].support==other_hmm[1].D[d].support
             @test !isapprox(new_hmm[1].D[d].p, other_hmm[1].D[d].p)
+            @test isapprox(ms_hmm[1].D[d].p, other_hmm[1].D[d].p)
+
             end
         else
             @test isapprox(getfield(new_hmm[1],n), getfield(mouchet_hmm[1],n))
+            @test isapprox(getfield(new_hmm[1],n), getfield(ms_sng[1],n))
+
             @test isapprox(getfield(new_hmm[1],n), getfield(dbl_hmm[1],n))
+            @test isapprox(getfield(new_hmm[1],n), getfield(ms_dbl[1],n))
+
             @test !isapprox(getfield(new_hmm[1],n), getfield(other_hmm[1],n))
+            @test isapprox(getfield(ms_hmm[1],n), getfield(other_hmm[1],n))
+
         end
     end
 
-    @test new_hmm[2] == mouchet_hmm[2] != dbl_hmm[2] != other_hmm[2]
+    @test ms_sng[2] == new_hmm[2] == mouchet_hmm[2] != dbl_hmm[2] == ms_dbl != other_hmm[2] == ms_hmm[2]
 
     @info "Testing fit_mle!..."
 
@@ -78,7 +102,7 @@ include("mouchet_fns.jl")
     @info "Test convergence.."
     obs=zeros(Int64, 101, 2)
     for i in 1:size(obs)[2]
-        obs[1:100,i]=rand(1:4,100)
+        obs[1:100,i]=rand(1:16,100)
     end
     input_hmms= RemoteChannel(()->Channel{Tuple}(1))
     output_hmms = RemoteChannel(()->Channel{Tuple}(30))

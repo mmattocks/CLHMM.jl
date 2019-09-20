@@ -1,24 +1,24 @@
 function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, obs_lengths::Vector{Int64})
     O,T = size(observations);
     a = log.(hmm.π); π0 = transpose(log.(hmm.π0))
-    N = length(hmm.D); D = length(hmm.D[1].support);
+    N = length(hmm.D); Γ = length(hmm.D[1].support);
     mask=observations.!=0
     #INITIALIZATION
     βoi_T = zeros(O,N); βoi_t = zeros(O,N) #log betas at T initialised as zeros
-    Eoimd_T = fill(-Inf,O,N,N,D); Eoimd_t = fill(-Inf,O,N,N,D)
-    @inbounds for m in 1:N, i in 1:N, γ in 1:D, o in 1:O
-        observations[o, obs_lengths[o]] == γ && m == i && (Eoimd_T[o, i, m, γ] = 0)
+    Eoγim_T = fill(-Inf,O,Γ,N,N); Eoγim_t = fill(-Inf,O,Γ,N,N)
+    @inbounds for m in 1:N, i in 1:N, γ in 1:Γ, o in 1:O
+        observations[o, obs_lengths[o]] == γ && m == i && (Eoγim_T[o, γ, i, m] = 0)
     end
     Tijm_T = fill(-Inf,O,N,N,N); Tijm_t = fill(-Inf,O,N,N,N) #Ti,j(T,m) = 0 for all m; in logspace
         
     #RECURRENCE
-    βoi_T,Tijm_T,Eoimd_T=backwards_sweep!(hmm,a,N,D,βoi_T,βoi_t,Tijm_T,Tijm_t,Eoimd_T,Eoimd_t,observations,mask,obs_lengths)
+    βoi_T,Tijm_T,Eoγim_T=backwards_sweep!(hmm,a,N,Γ,βoi_T,βoi_t,Tijm_T,Tijm_t,Eoγim_T,Eoγim_t,observations,mask,obs_lengths)
 
     #TERMINATION
     lls = llhs(hmm,observations[:,1])
     α1om = lls .+ π0 #first position forward msgs
     Toij = [logsumexp([lps(view(Tijm_T,o,i,j,m), view(α1om,o,m)) for m in 1:N]) for o in 1:O, i in 1:N, j in 1:N] #terminate Tijs with forward messages
-    Eoid=[logsumexp([lps(view(Eoimd_T,o,i,m,γ), view(α1om,o,m)) for m in 1:N]) for o in 1:O, i in 1:N, γ in 1:D] #terminate Eids with forward messages
+    Eoiγ=[logsumexp([lps(view(Eoγim_T,o,γ,i,m), view(α1om,o,m)) for m in 1:N]) for o in 1:O, i in 1:N, γ in 1:Γ] #terminate Eids with forward messages
 
     #INTEGRATE ACROSS OBSERVATIONS AND SOLVE FOR NEW HMM PARAMS
     obs_penalty=log(O) #broadcast subtraction to normalise log prob vals by obs number
@@ -29,37 +29,36 @@ function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, 
     a_int = Toij.-logsumexp.([view(Toij,o,i,:) for o in 1:O, i in 1:N])
     new_a = logsumexp.([a_int[:,i,j] for i in 1:N, j in 1:N]).-obs_penalty
     #EMISSION MATRIX
-    e_int=Eoid.-logsumexp.([view(Eoid,o,j,:) for o in 1:O, j in 1:N])
-    new_b=logsumexp.([view(e_int,:,j,d) for d in 1:D, j in 1:N]).-obs_penalty
+    e_int=Eoiγ.-logsumexp.([view(Eoiγ,o,j,:) for o in 1:O, j in 1:N])
+    new_b=logsumexp.([view(e_int,:,j,γ) for γ in 1:Γ, j in 1:N]).-obs_penalty
     new_D::Vector{Categorical}=[Categorical(exp.(new_b[:,i])) for i in 1:N]
 
     return typeof(hmm)(exp.(new_π0), exp.(new_a), new_D), lps([logsumexp(lps.(α1om[o,:], βoi_T[o,:])) for o in 1:O])
 end
                 #LINEAR_STEP SUBFUNCS
-                function backwards_sweep!(hmm::HMM{Univariate,Float64}, a::Matrix{Float64},N::Int64,D::Int64,βoi_T::Matrix{Float64},βoi_t::Matrix{Float64},Tijm_T::Array{Float64},Tijm_t::Array{Float64},Eoimd_T::Array{Float64},Eoimd_t::Array{Float64}, observations::Matrix{Int64}, mask::BitMatrix, obs_lengths::Vector{Int64})
+                function backwards_sweep!(hmm::HMM{Univariate,Float64}, a::Matrix{Float64},N::Int64,Γ::Int64,βoi_T::Matrix{Float64},βoi_t::Matrix{Float64},Tijm_T::Array{Float64},Tijm_t::Array{Float64},Eoγim_T::Array{Float64},Eoγim_t::Array{Float64}, observations::Matrix{Int64}, mask::BitMatrix, obs_lengths::Vector{Int64})
                     @inbounds for t in maximum(obs_lengths)-1:-1:1
-                        lls = llhs(hmm,observations[:,t+1])
                         last_β=copy(βoi_T)
-                        omask = mask[:,t+1]
+                        lls = llhs(hmm,observations[:,t+1])
+                        omask = findall(mask[:,t+1])
                         βoi_T[omask,:] .+= view(lls,omask,:)
                         for m in 1:N
-                            trans_view = transpose(view(a,m,:))
-                            βoi_t[omask,m] = logsumexp.(eachrow(view(βoi_T,omask,:).+trans_view))
-                            for i in 1:N, j in 1:N
-                                Tijm_t[omask, i, j, m] .= logsumexp.(eachrow(lps.(view(Tijm_T,omask,i,j,:), view(lls,omask,:), trans_view)))
+                            βoi_t[omask,m] = logsumexp.(eachrow(view(βoi_T,omask,:).+transpose(view(a,m,:))))
+                            for j in 1:N, i in 1:N
+                                Tijm_t[omask, i, j, m] .= logsumexp.(eachrow(lps.(view(Tijm_T,omask,i,j,:), view(lls,omask,:), transpose(view(a,m,:)))))
                                 i==m && (Tijm_t[omask, i, j, m] .= logaddexp.(Tijm_t[omask, i, j, m], (last_β[omask,j].+ a[m,j].+ lls[omask,j])))
                             end
-                            for i in 1:N, γ in 1:D
-                                Eoimd_t[omask, i, m, γ] .= logsumexp.(eachrow(lps.(view(Eoimd_T,omask,i,:,γ),view(lls,omask,:),trans_view)))
+                            for i in 1:N, γ in 1:Γ
+                                Eoγim_t[omask, γ, i, m] .= logsumexp.(eachrow(lps.(view(Eoγim_T,omask,γ,i,:),view(lls,omask,:),transpose(view(a,m,:)))))
                                 if i==m
-                                    symmask = observations[:,t].==γ
-                                    Eoimd_t[symmask, i, m, γ] .= logaddexp.(Eoimd_t[symmask,i, m, γ], βoi_t[symmask,m])
+                                    symmask = findall(observations[:,t].==γ)
+                                    Eoγim_t[symmask, γ, i, m] .= logaddexp.(Eoγim_t[symmask, γ, i, m], βoi_t[symmask,m])
                                 end
                             end
                         end
-                        βoi_T=copy(βoi_t); Tijm_T=copy(Tijm_t); Eoimd_T = copy(Eoimd_t);
+                        βoi_T=copy(βoi_t); Tijm_T=copy(Tijm_t); Eoγim_T = copy(Eoγim_t);
                     end
-                    return βoi_T, Tijm_T, Eoimd_T
+                    return βoi_T, Tijm_T, Eoγim_T
                 end
 
                 function llhs(hmm::AbstractHMM{Univariate}, observation::Vector{Int64})

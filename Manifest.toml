@@ -80,8 +80,8 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[MS_HMMBase]]
-deps = ["Distributed", "Distributions", "HMMBase", "LinearAlgebra", "StaticArrays", "StatsFuns", "Strided"]
-git-tree-sha1 = "1a12c64cdc06f623fa8dd5927c86425e159a635b"
+deps = ["Distributed", "Distributions", "HMMBase", "LinearAlgebra", "StaticArrays", "StatsFuns"]
+git-tree-sha1 = "d4f301dc5d2fd7137315735e716dadfb451e4150"
 repo-rev = "master"
 repo-url = "https://github.com/mmattocks/MS_HMMBase.jl"
 uuid = "f5650aa0-5f46-11e9-253e-a98edbbd51a5"
@@ -190,12 +190,6 @@ git-tree-sha1 = "b3a4e86aa13c732b8a8c0ba0c3d3264f55e6bb3e"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "0.8.0"
 
-[[Strided]]
-deps = ["LinearAlgebra", "TupleTools"]
-git-tree-sha1 = "7bc504102ef0e49b19727ea45b54f611bee4320e"
-uuid = "5e0ebb24-38b0-5f93-81fe-25c709ecae67"
-version = "0.3.3"
-
 [[SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -203,12 +197,6 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[[TupleTools]]
-deps = ["Random", "Test"]
-git-tree-sha1 = "b006524003142128cc6d36189dce337729aa0050"
-uuid = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
-version = "1.1.0"
 
 [[URIParser]]
 deps = ["Test", "Unicode"]

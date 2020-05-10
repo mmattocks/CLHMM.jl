@@ -99,14 +99,14 @@ function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChann
             put!(output_hmms, (workerid, jobid, curr_iterate, new_hmm, last_norm, 0, false))
         else #get the delta value from the channel-supplied job value to resume a chain properly
             new_hmm, last_norm = linear_step(hmm, observations, obs_lengths)
-            delta = lps(job_norm, -last_norm)
+            delta = abs(lps(job_norm, -last_norm))
             put!(output_hmms, (workerid, jobid, curr_iterate, new_hmm, last_norm, delta, false))
         end
 
         for i in curr_iterate:max_iterations
             new_hmm, norm = linear_step(new_hmm, observations, obs_lengths)
             curr_iterate += 1
-            delta = lps(norm, -last_norm)
+            delta = abs(lps(norm, -last_norm))
             if delta < delta_thresh
                 put!(output_hmms, (workerid, jobid, curr_iterate, new_hmm, norm, delta, true))
                 verbose && @info "Job ID $jobid converged after $(curr_iterate-1) EM steps"

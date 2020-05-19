@@ -1,5 +1,5 @@
 #slow algo written in mimicry of Churbanov & Winters
-function old_linear(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, obs_lengths::Vector{Int64})
+function old_linear(hmm::HMM{Univariate,AbstractFloat}, observations::Matrix{Integer}, obs_lengths::Vector{Integer})
     O = size(observations)[2]
     a = log.(hmm.π); π0 = log.(hmm.π0)
     N = length(hmm.D); D = length(hmm.D[1].support); b = [log(hmm.D[m].p[γ]) for m in 1:N, γ in 1:D]
@@ -112,7 +112,7 @@ end
 
 
 
-function mouchet_messages_forwards_log(init_distn::AbstractVector{Float64}, trans_matrix::AbstractMatrix{Float64}, log_likelihoods::AbstractMatrix{Float64})
+function mouchet_messages_forwards_log(init_distn::AbstractVector{AbstractFloat}, trans_matrix::AbstractMatrix{AbstractFloat}, log_likelihoods::AbstractMatrix{AbstractFloat})
     # OPTIMIZE
     log_alphas = zeros(size(log_likelihoods))
     log_trans_matrix = log.(trans_matrix)
@@ -125,7 +125,7 @@ function mouchet_messages_forwards_log(init_distn::AbstractVector{Float64}, tran
     log_alphas
 end
 
-function mouchet_messages_backwards_log(trans_matrix::AbstractMatrix{Float64}, log_likelihoods::AbstractMatrix{Float64})
+function mouchet_messages_backwards_log(trans_matrix::AbstractMatrix{AbstractFloat}, log_likelihoods::AbstractMatrix{AbstractFloat})
     # OPTIMIZE
     log_betas = zeros(size(log_likelihoods))
     log_trans_matrix = log.(trans_matrix)

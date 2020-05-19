@@ -1,4 +1,4 @@
-using CLHMM, Distributed, Distributions, HMMBase, Test, Random, MS_HMMBase
+using CLHMM, Distributed, Distributions, Test, Random, MS_HMMBase
 import StatsFuns: logsumexp
 include("ref_fns.jl")
 

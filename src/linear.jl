@@ -1,4 +1,4 @@
-function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, obs_lengths::Vector{Int64})
+function linear_step(hmm::HMM{Univariate,AbstractFloat}, observations::Matrix{Integer}, obs_lengths::Vector{Integer})
     O,T = size(observations);
     a = log.(hmm.π); π0 = transpose(log.(hmm.π0))
     N = length(hmm.D); Γ = length(hmm.D[1].support);
@@ -13,10 +13,13 @@ function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, 
         
     #RECURRENCE
     βoi_T,Tijm_T,Eoγim_T=backwards_sweep!(hmm,a,N,Γ,βoi_T,βoi_t,Tijm_T,Tijm_t,Eoγim_T,Eoγim_t,observations,mask,obs_lengths)
-
+        
     #TERMINATION
     lls = llhs(hmm,observations[:,1])
     α1om = lls .+ π0 #first position forward msgs
+    println(view(Tijm_T,o,i,j,m))
+    println(view(α1om,o,m))
+
     Toij = [logsumexp([lps(view(Tijm_T,o,i,j,m), view(α1om,o,m)) for m in 1:N]) for o in 1:O, i in 1:N, j in 1:N] #terminate Tijs with forward messages
     Eoiγ=[logsumexp([lps(view(Eoγim_T,o,γ,i,m), view(α1om,o,m)) for m in 1:N]) for o in 1:O, i in 1:N, γ in 1:Γ] #terminate Eids with forward messages
 
@@ -36,7 +39,7 @@ function linear_step(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64}, 
     return typeof(hmm)(exp.(new_π0), exp.(new_a), new_D), lps([logsumexp(lps.(α1om[o,:], βoi_T[o,:])) for o in 1:O])
 end
                 #LINEAR_STEP SUBFUNCS
-                function backwards_sweep!(hmm::HMM{Univariate,Float64}, a::Matrix{Float64},N::Int64,Γ::Int64,βoi_T::Matrix{Float64},βoi_t::Matrix{Float64},Tijm_T::Array{Float64},Tijm_t::Array{Float64},Eoγim_T::Array{Float64},Eoγim_t::Array{Float64}, observations::Matrix{Int64}, mask::BitMatrix, obs_lengths::Vector{Int64})
+                function backwards_sweep!(hmm::HMM{Univariate,AbstractFloat}, a::Matrix{AbstractFloat},N::Integer,Γ::Integer,βoi_T::Matrix{AbstractFloat},βoi_t::Matrix{AbstractFloat},Tijm_T::Array{AbstractFloat},Tijm_t::Array{AbstractFloat},Eoγim_T::Array{AbstractFloat},Eoγim_t::Array{AbstractFloat}, observations::Matrix{Integer}, mask::BitMatrix, obs_lengths::Vector{Integer})
                     @inbounds for t in maximum(obs_lengths)-1:-1:1
                         last_β=copy(βoi_T)
                         lls = llhs(hmm,observations[:,t+1])
@@ -61,7 +64,7 @@ end
                     return βoi_T, Tijm_T, Eoγim_T
                 end
 
-                function llhs(hmm::AbstractHMM{Univariate}, observation::Vector{Int64})
+                function llhs(hmm::AbstractHMM{Univariate}, observation::Vector{Integer})
                     lls = zeros(length(observation),length(hmm.D))
                     for d in 1:length(hmm.D)
                         lls[:,d] = logpdf.(hmm.D[d], observation)
@@ -70,19 +73,19 @@ end
                 end
 
                 #subfuncs to handle sums of log probabilities that may include -Inf (ie p=0), returning -Inf in this case rather than NaNs
-                function lps(adjuvants::AbstractArray)
+                function lps(adjuvants::Array{AbstractFloat})
                     prob = sum(adjuvants) ; isnan(prob) ? - Inf : prob
                 end
                 
-                function lps(base, adjuvants...)::Float64
+                function lps(base::AbstractFloat, adjuvants ::AbstractFloat ...)
                     prob = base+sum(adjuvants) ; isnan(prob) ? -Inf : prob
                 end
 
 
-function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChannel, no_models::Int64, ; delta_thresh=1e-3, max_iterations=5000, verbose=false)
+function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChannel, no_models::Integer, ; delta_thresh=1e-3, max_iterations=5000, verbose=false)
     while isready(hmm_jobs)
         workerid = myid()
-        jobid::Tuple{String, Int64, Int64, Int64}, start_iterate::Int64, hmm::HMM, job_norm::Float64, observations::Matrix{Int64} = take!(hmm_jobs)
+        jobid::Tuple{String, Integer, Integer, Integer}, start_iterate::Integer, hmm::HMM, job_norm::AbstractFloat, observations::Matrix{Integer} = take!(hmm_jobs)
         jobid == 0 && break #no valid job for this worker according to load_table entry
 
         @assert start_iterate < max_iterations - 1
@@ -120,7 +123,7 @@ function linear_hmm_converger!(hmm_jobs::RemoteChannel, output_hmms::RemoteChann
     end
 end
 
-function lin_obs_set_lh(hmm::HMM{Univariate,Float64}, observations::Matrix{Int64})
+function lin_obs_set_lh(hmm::HMM{Univariate,AbstractFloat}, observations::Matrix{Integer})
     O = size(observations)[1]; obs_lengths = [findfirst(iszero,observations[o,:])-1 for o in 1:O]
     a = log.(hmm.π); π0 = log.(hmm.π0)
     N = length(hmm.D); D = length(hmm.D[1].support); b = [log(hmm.D[m].p[γ]) for m in 1:N, γ in 1:D]
